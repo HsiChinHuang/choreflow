@@ -1,0 +1,14 @@
+[project]
+name = "choreflow"
+version = "0.1.0"
+description = "Shared Household Chore Tool"
+requires-python = ">=3.12"
+dependencies = [
+    "django>=5.0,<6",
+]
+
+[dependency-groups]
+test = [
+    "pytest>=8",
+    "pytest-django",
+]
