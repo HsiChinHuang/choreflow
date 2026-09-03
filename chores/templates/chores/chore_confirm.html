@@ -20,31 +20,33 @@
             <div class="card-header">
                 <h5 class="mb-0">Current Values</h5>
             </div>
-            <div class="card-body">
-                <table class="table table-sm mb-0">
-                    <tr>
-                        <th>Name</th>
-                        <td>{{ chore.name }}</td>
-                    </tr>
-                    <tr>
-                        <th>Category</th>
-                        <td>{{ chore.category.name }}</td>
-                    </tr>
-                    <tr>
-                        <th>Difficulty</th>
-                        <td>{{ chore.difficulty|capfirst }}</td>
-                    </tr>
-                    <tr>
-                        <th>Interval</th>
-                        <td>
-                            {% if chore.interval_override_days %}
-                                {{ chore.interval_override_days }} days
-                            {% else %}
-                                Household default ({{ household.default_interval_days }} days)
-                            {% endif %}
-                        </td>
-                    </tr>
-                </table>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Name</th>
+                            <td>{{ chore.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Category</th>
+                            <td>{{ chore.category.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Difficulty</th>
+                            <td>{{ chore.difficulty|capfirst }}</td>
+                        </tr>
+                        <tr>
+                            <th>Interval</th>
+                            <td>
+                                {% if chore.interval_override_days %}
+                                    {{ chore.interval_override_days }} days
+                                {% else %}
+                                    Household default ({{ household.default_interval_days }} days)
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -54,67 +56,69 @@
             <div class="card-header bg-warning text-dark">
                 <h5 class="mb-0">Proposed Changes</h5>
             </div>
-            <div class="card-body">
-                <table class="table table-sm mb-0">
-                    <tr>
-                        <th>Name</th>
-                        <td>
-                            {% if pending_changes.name != chore.name %}
-                                <del>{{ chore.name }}</del> &rarr; <strong>{{ pending_changes.name }}</strong>
-                            {% else %}
-                                {{ pending_changes.name }}
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Category</th>
-                        <td>
-                            {% if pending_changes.category != chore.category.id %}
-                                <del>{{ chore.category.name }}</del> &rarr;
-                                {% for cat in categories %}
-                                    {% if cat.id == pending_changes.category %}
-                                        <strong>{{ cat.name }}</strong>
-                                    {% endif %}
-                                {% endfor %}
-                            {% else %}
-                                {% for cat in categories %}
-                                    {% if cat.id == pending_changes.category %}
-                                        {{ cat.name }}
-                                    {% endif %}
-                                {% endfor %}
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Difficulty</th>
-                        <td>
-                            {% if pending_changes.difficulty != chore.difficulty %}
-                                <del>{{ chore.difficulty }}</del> &rarr; <strong>{{ pending_changes.difficulty }}</strong>
-                            {% else %}
-                                {{ pending_changes.difficulty|capfirst }}
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Interval</th>
-                        <td>
-                            {% if pending_changes.interval_override_days|default:None != chore.interval_override_days %}
-                                {% if chore.interval_override_days %}
-                                    <del>{{ chore.interval_override_days }} days</del> &rarr;
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th>Name</th>
+                            <td>
+                                {% if pending_changes.name != chore.name %}
+                                    <del>{{ chore.name }}</del> &rarr; <strong>{{ pending_changes.name }}</strong>
                                 {% else %}
-                                    <del>Household default</del> &rarr;
+                                    {{ pending_changes.name }}
                                 {% endif %}
-                                <strong>{{ pending_changes.interval_override_days }} days</strong>
-                            {% else %}
-                                {% if chore.interval_override_days %}
-                                    {{ chore.interval_override_days }} days
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Category</th>
+                            <td>
+                                {% if pending_changes.category != chore.category.id %}
+                                    <del>{{ chore.category.name }}</del> &rarr;
+                                    {% for cat in categories %}
+                                        {% if cat.id == pending_changes.category %}
+                                            <strong>{{ cat.name }}</strong>
+                                        {% endif %}
+                                    {% endfor %}
                                 {% else %}
-                                    Household default ({{ household.default_interval_days }} days)
+                                    {% for cat in categories %}
+                                        {% if cat.id == pending_changes.category %}
+                                            {{ cat.name }}
+                                        {% endif %}
+                                    {% endfor %}
                                 {% endif %}
-                            {% endif %}
-                        </td>
-                    </tr>
-                </table>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Difficulty</th>
+                            <td>
+                                {% if pending_changes.difficulty != chore.difficulty %}
+                                    <del>{{ chore.difficulty }}</del> &rarr; <strong>{{ pending_changes.difficulty }}</strong>
+                                {% else %}
+                                    {{ pending_changes.difficulty|capfirst }}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Interval</th>
+                            <td>
+                                {% if pending_changes.interval_override_days|default:None != chore.interval_override_days %}
+                                    {% if chore.interval_override_days %}
+                                        <del>{{ chore.interval_override_days }} days</del> &rarr;
+                                    {% else %}
+                                        <del>Household default</del> &rarr;
+                                    {% endif %}
+                                    <strong>{{ pending_changes.interval_override_days }} days</strong>
+                                {% else %}
+                                    {% if chore.interval_override_days %}
+                                        {{ chore.interval_override_days }} days
+                                    {% else %}
+                                        Household default ({{ household.default_interval_days }} days)
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

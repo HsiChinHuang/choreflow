@@ -237,6 +237,33 @@ class TestChoreConfirmView:
         assert chore.name == 'Vacuum'
         assert chore.pending_changes is None
 
+    def test_confirm_sets_confirmed_by(self, client, chore, category, partner_user, creator_user):
+        """Confirming sets confirmed_by to the confirming partner."""
+        client.login(username='partner', password='pass')
+        chore.pending_changes = {'name': 'Mop', 'category': category.id, 'difficulty': 'hard'}
+        chore.save(update_fields=['pending_changes'])
+        assert chore.confirmed_by is None
+        r = client.post(reverse('chore_confirm', args=[chore.pk]), {
+            'action': 'confirm',
+        })
+        assertRedirects(r, reverse('chore_list'))
+        chore.refresh_from_db()
+        assert chore.confirmed_by == partner_user
+
+    def test_creator_cannot_confirm_own_changes(self, client, chore, category, creator_user):
+        """The creator cannot confirm their own pending changes."""
+        client.login(username='creator', password='pass')
+        chore.pending_changes = {'name': 'Mop', 'category': category.id, 'difficulty': 'hard'}
+        chore.save(update_fields=['pending_changes'])
+        initial_name = chore.name
+        r = client.post(reverse('chore_confirm', args=[chore.pk]), {
+            'action': 'confirm',
+        })
+        chore.refresh_from_db()
+        # Changes should NOT be applied when creator tries to confirm
+        assert chore.name == initial_name
+        assert chore.pending_changes is not None  # pending_changes not cleared
+
 
 # ─── chore_confirm — branch with rejected pending_changes mutation ────────────
 
@@ -958,3 +985,216 @@ class TestPauseRotation:
         r = client.get(reverse('household_settings'))
         assert r.status_code == 200
         assert b'Paused' in r.content
+
+
+# ─── Issue #59: Integration tests for main user flows ────────────────────────
+
+class TestIntegrationFlows:
+
+    def test_main_flow_recurring_chore(self, client, household, category, creator_user, partner_user):
+        """User A creates chore, User B edits and confirms, User A completes, next goes to B."""
+        # User A creates recurring chore
+        client.login(username='creator', password='pass')
+        r = client.post(reverse('chore_create'), {
+            'name': 'Vacuum',
+            'category': category.id,
+            'difficulty': 'easy',
+        })
+        assertRedirects(r, reverse('chore_list'))
+
+        chore = Chore.objects.get(name='Vacuum')
+        assert chore.household == household
+        assert chore.created_by == creator_user
+
+        # Auto-generated first assignment exists
+        assignments = ChoreAssignment.objects.filter(chore=chore)
+        assert assignments.count() == 1
+        first_assignment = assignments.first()
+        assert first_assignment.completed is False
+
+        # User B edits chore (triggers pending_changes since B is not the creator)
+        client.login(username='partner', password='pass')
+        r = client.post(reverse('chore_update', args=[chore.pk]), {
+            'name': 'Vacuum entire house',
+            'category': category.id,
+            'difficulty': 'hard',
+        })
+        assertRedirects(r, reverse('chore_list'))
+
+        chore.refresh_from_db()
+        assert chore.pending_changes is not None
+        assert chore.pending_changes.get('name') == 'Vacuum entire house'
+        # Original fields unchanged
+        assert chore.name == 'Vacuum'
+
+        # User B confirms the changes (B is not the creator, so allowed to confirm)
+        client.login(username='partner', password='pass')
+        r = client.post(reverse('chore_confirm', args=[chore.pk]), {
+            'action': 'confirm',
+        })
+        assertRedirects(r, reverse('chore_list'))
+
+        chore.refresh_from_db()
+        assert chore.confirmed_by == partner_user
+        assert chore.pending_changes is None
+        assert chore.name == 'Vacuum entire house'
+
+        # User A completes the assignment
+        client.login(username='creator', password='pass')
+        r = client.post(reverse('assignment_complete', args=[first_assignment.pk]))
+        assertRedirects(r, reverse('dashboard'))
+
+        first_assignment.refresh_from_db()
+        assert first_assignment.completed is True
+        assert first_assignment.completed_at is not None
+
+        # Next assignment goes to Partner B (alternation)
+        remaining = ChoreAssignment.objects.filter(chore=chore, completed=False)
+        assert remaining.count() == 1
+        assert remaining.first().assigned_to == partner_user
+
+        # DB state: 2 assignments, 1 completed, 1 pending
+        all_assignments = ChoreAssignment.objects.filter(chore=chore)
+        assert all_assignments.count() == 2
+        assert all_assignments.filter(completed=True).count() == 1
+        assert all_assignments.filter(completed=False).count() == 1
+
+    def test_main_flow_user_b_completes_next(self, client, household, category, creator_user, partner_user):
+        """After B gets the next assignment, B completes it."""
+        # User A creates chore
+        client.login(username='creator', password='pass')
+        client.post(reverse('chore_create'), {
+            'name': 'Mop',
+            'category': category.id,
+            'difficulty': 'medium',
+        })
+        chore = Chore.objects.get(name='Mop')
+        a1 = ChoreAssignment.objects.filter(chore=chore).first()
+
+        # User B edits (triggers pending_changes)
+        client.login(username='partner', password='pass')
+        client.post(reverse('chore_update', args=[chore.pk]), {
+            'name': 'Mop floors',
+            'category': category.id,
+            'difficulty': 'hard',
+        })
+
+        # User B confirms
+        client.login(username='partner', password='pass')
+        client.post(reverse('chore_confirm', args=[chore.pk]), {
+            'action': 'confirm',
+        })
+
+        # User A completes first assignment
+        client.login(username='creator', password='pass')
+        client.post(reverse('assignment_complete', args=[a1.pk]))
+
+        # Next goes to B
+        a2 = ChoreAssignment.objects.get(chore=chore, completed=False)
+        assert a2.assigned_to == partner_user
+
+        # User B completes it
+        client.login(username='partner', password='pass')
+        client.post(reverse('assignment_complete', args=[a2.pk]))
+
+        a2.refresh_from_db()
+        assert a2.completed is True
+
+    def test_one_time_chore_fair_assignment(self, client, household, category, creator_user, partner_user):
+        """One-time chore uses get_fair_assignee for assignment."""
+        client.login(username='creator', password='pass')
+        r = client.post(reverse('one_time_create'), {
+            'name': 'Paint fence',
+            'category': category.id,
+            'difficulty': 'hard',
+            'due_date': '2026-12-25',
+        })
+        assertRedirects(r, reverse('chore_list'))
+
+        chore = Chore.objects.get(name='Paint fence')
+        assert chore.is_one_time is True
+
+        assignments = ChoreAssignment.objects.filter(chore=chore)
+        assert assignments.count() == 1
+        assert assignments.first().assigned_to in (creator_user, partner_user)
+
+    def test_one_time_chore_respects_fairness(self, client, household, category, creator_user, partner_user):
+        """When one partner has more points, the fair partner gets the one-time chore."""
+        # Give creator more points via a completed chore
+        old_chore = Chore.objects.create(
+            name='Old chore', category=category, household=household,
+            created_by=creator_user, is_one_time=True,
+        )
+        ChoreAssignment.objects.create(
+            chore=old_chore, assigned_to=creator_user,
+            completed=True, completed_at=timezone.now(),
+            due_date=timezone.now() - timedelta(days=10),
+        )
+        # Creator has 3 points, partner has 0
+        client.login(username='creator', password='pass')
+        r = client.post(reverse('one_time_create'), {
+            'name': 'New chore',
+            'category': category.id,
+            'difficulty': 'medium',
+            'due_date': '2026-12-25',
+        })
+        assertRedirects(r, reverse('chore_list'))
+
+        new_chore = Chore.objects.get(name='New chore')
+        assignment = ChoreAssignment.objects.get(chore=new_chore)
+        # Fair partner (partner_user with 0 points) should be assigned
+        assert assignment.assigned_to == partner_user
+
+    def test_integration_db_state_assertions(self, client, household, category, creator_user, partner_user):
+        """Full flow with explicit DB state assertions throughout."""
+        # Start: 2 users, 0 chores, 0 assignments
+        assert Chore.objects.count() == 0
+        assert ChoreAssignment.objects.count() == 0
+
+        # User A creates chore
+        client.login(username='creator', password='pass')
+        client.post(reverse('chore_create'), {
+            'name': 'Dishes',
+            'category': category.id,
+            'difficulty': 'easy',
+        })
+        assert Chore.objects.count() == 1
+        assert ChoreAssignment.objects.count() == 1
+
+        chore = Chore.objects.first()
+        assert chore.name == 'Dishes'
+        assert chore.is_one_time is False
+        assert chore.created_by == creator_user
+        assert chore.confirmed_by is None
+        assert chore.pending_changes is None
+
+        # User B edits chore (triggers pending_changes)
+        client.login(username='partner', password='pass')
+        client.post(reverse('chore_update', args=[chore.pk]), {
+            'name': 'Wash dishes',
+            'category': category.id,
+            'difficulty': 'medium',
+        })
+        chore.refresh_from_db()
+        assert chore.pending_changes is not None
+
+        # User B confirms
+        client.login(username='partner', password='pass')
+        client.post(reverse('chore_confirm', args=[chore.pk]), {
+            'action': 'confirm',
+        })
+        chore.refresh_from_db()
+        assert chore.confirmed_by == partner_user
+        assert chore.pending_changes is None
+        assert chore.name == 'Wash dishes'
+
+        # User A completes
+        a1 = ChoreAssignment.objects.get(chore=chore, completed=False)
+        client.login(username='creator', password='pass')
+        client.post(reverse('assignment_complete', args=[a1.pk]))
+
+        # DB: 1 completed, 1 pending for partner
+        assert ChoreAssignment.objects.filter(chore=chore, completed=True).count() == 1
+        assert ChoreAssignment.objects.filter(chore=chore, completed=False).count() == 1
+        pending = ChoreAssignment.objects.get(chore=chore, completed=False)
+        assert pending.assigned_to == partner_user

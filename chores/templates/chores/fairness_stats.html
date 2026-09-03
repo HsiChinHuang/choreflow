@@ -39,8 +39,9 @@
     <div class="card-header">
         <h5 class="mb-0">Recent Activity (Last 20)</h5>
     </div>
-    <div class="card-body">
-        <table class="table table-striped">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
             <thead>
                 <tr>
                     <th>Chore</th>
@@ -67,7 +68,8 @@
                 </tr>
                 {% endfor %}
             </tbody>
-        </table>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}
