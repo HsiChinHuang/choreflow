@@ -23,6 +23,7 @@ Tests are run with `pytest` via `uv run pytest`.
 | `tests/test_models.py` | Model `__str__`, properties (`difficulty_points`), auto-generated fields (`invite_code`), Category (name, is_predefined, household FK), Chore (all fields, difficulty_points), ChoreAssignment (all fields, __str__), Notification (all fields, __str__) |
 | `tests/test_auth.py` | Signup view (creates user, creates household, redirects to dashboard), login/logout (Django auth views), signup with invite code (join existing household, invalid code error), household creation (partner assignment, default interval), invite code generation (8 chars alphanumeric, uniqueness, auto-generate on save, regenerate in view), household settings view, pause rotation toggle |
 | `tests/test_home.py` | Base template renders, has Bootstrap CDN, defines blocks (title, content, extra_js), has navbar |
+| `tests/test_categories.py` | Management command `seed_categories` (creates 6 predefined categories, idempotent, correct data), `category_manage` view (loads, shows categories, login required), add custom category (creates category, prevents predefined name duplicates, requires name), delete custom category (deletes custom, blocks when chores use it, blocks predefined, blocks other household) |
 
 ## Conventions
 
