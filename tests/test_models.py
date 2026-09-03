@@ -11,7 +11,7 @@ class TestHousehold(TestCase):
 
     def test_household_invite_code_auto_generated(self):
         household = Household.objects.create(name="Test Household")
-        self.assertTrue(len(household.invite_code) == 20)
+        self.assertTrue(len(household.invite_code) == 8)
 
     def test_household_defaults(self):
         household = Household.objects.create(name="Test Household")

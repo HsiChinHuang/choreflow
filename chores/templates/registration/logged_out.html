@@ -1,0 +1,19 @@
+<!-- chores/templates/registration/logged_out.html -->
+{% extends "base.html" %}
+
+{% block title %}Logged Out - ChoreFlow{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4>You have been logged out</h4>
+                <p class="text-muted">Thank you for using ChoreFlow.</p>
+                <a href="{% url 'login' %}" class="btn btn-primary">Log in again</a>
+                <a href="{% url 'signup' %}" class="btn btn-outline-primary ms-2">Sign up</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+<!-- chores/templates/chores/household_settings.html -->
+{% extends "base.html" %}
+
+{% block title %}Household Settings - ChoreFlow{% endblock %}
+
+{% block content %}
+<h2>Household Settings</h2>
+
+<div class="card mt-3">
+    <div class="card-body">
+        <h5>{{ household.name }}</h5>
+        <p>Invite code: <strong>{{ household.invite_code }}</strong></p>
+        <p>Partners: {{ household.partners.count }}</p>
+        <p>Rotation: {% if household.pause_rotation %}<span class="text-danger">Paused</span>{% else %}<span class="text-success">Active</span>{% endif %}</p>
+
+        <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="regenerate_code">
+            <button type="submit" class="btn btn-warning btn-sm">Regenerate invite code</button>
+        </form>
+
+        <form method="post" action="{% url 'pause_rotation' %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                {% if household.pause_rotation %}Resume{% else %}Pause{% endif %} rotation
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

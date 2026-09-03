@@ -20,10 +20,9 @@ Tests are run with `pytest` via `uv run pytest`.
 
 | File | Covers |
 |---|---|
-| `tests/test_models.py` | Model `__str__`, properties (`difficulty_points`, `get_interval`, `status`), auto-generated fields (`invite_code`), Category (name, is_predefined, household FK), Chore (all fields, difficulty_points), ChoreAssignment (all fields, __str__), Notification (all fields, __str__) |
-| `tests/test_services.py` | Fairness calculation, `auto_assign_one_time`, `generate_new_assignments` |
-| `tests/test_views.py` | All views (dashboard, chore CRUD, assignment complete, household settings, generate invite code, pause rotation, one-time create, fairness stats, notifications, category management) |
-| `tests/test_management_commands.py` | `rotate_chores` (creates, dry-run, paused skip), `send_reminders` (creates, idempotent) |
+| `tests/test_models.py` | Model `__str__`, properties (`difficulty_points`), auto-generated fields (`invite_code`), Category (name, is_predefined, household FK), Chore (all fields, difficulty_points), ChoreAssignment (all fields, __str__), Notification (all fields, __str__) |
+| `tests/test_auth.py` | Signup view (creates user, creates household, redirects to dashboard), login/logout (Django auth views), signup with invite code (join existing household, invalid code error), household creation (partner assignment, default interval), invite code generation (8 chars alphanumeric, uniqueness, auto-generate on save, regenerate in view), household settings view, pause rotation toggle |
+| `tests/test_home.py` | Base template renders, has Bootstrap CDN, defines blocks (title, content, extra_js), has navbar |
 
 ## Conventions
 
