@@ -1,0 +1,32 @@
+<!-- chores/templates/chores/notification_list.html -->
+{% extends "base.html" %}
+
+{% block title %}Notifications - ChoreFlow{% endblock %}
+
+{% block content %}
+<h2>Notifications</h2>
+
+<div class="card mt-3">
+    <div class="card-body">
+        {% for notification in notifications %}
+        <div class="d-flex justify-content-between align-items-center mb-2 p-2 {% if not notification.read %}bg-light{% endif %}">
+            <div>
+                {% if not notification.read %}<strong>{% endif %}
+                {{ notification.message }}
+                {% if not notification.read %}</strong>{% endif %}
+                <br>
+                <small class="text-muted">{{ notification.created_at|date:"M d, Y H:i" }}</small>
+            </div>
+            {% if not notification.read %}
+            <form method="post" action="{% url 'notification_read' notification.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-primary">Mark Read</button>
+            </form>
+            {% endif %}
+        </div>
+        {% empty %}
+        <p class="text-muted">No notifications.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

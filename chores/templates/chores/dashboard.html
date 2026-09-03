@@ -5,10 +5,90 @@
 
 {% block content %}
 <h2>Dashboard</h2>
+
 <div class="row mt-4">
-    <div class="col-md-12">
-        <div class="alert alert-info">
-            Welcome to ChoreFlow! Your household is being set up.
+    <!-- Overdue -->
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Overdue</h5>
+            </div>
+            <div class="card-body">
+                {% if overdue %}
+                    {% for assignment in overdue %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
+                        <div>
+                            <strong>{{ assignment.chore.name }}</strong>
+                            <br>
+                            <small class="text-muted">Due: {{ assignment.due_date|date:"M d" }}</small>
+                        </div>
+                        <form method="post" action="{% url 'assignment_complete' assignment.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-danger">Done</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No overdue chores.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Today -->
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">Today</h5>
+            </div>
+            <div class="card-body">
+                {% if today %}
+                    {% for assignment in today %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
+                        <div>
+                            <strong>{{ assignment.chore.name }}</strong>
+                            <br>
+                            <small class="text-muted">{{ assignment.chore.category.name }}</small>
+                            <span class="badge bg-{{ assignment.chore.difficulty }}">{{ assignment.chore.get_difficulty_display }}</span>
+                        </div>
+                        <form method="post" action="{% url 'assignment_complete' assignment.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-warning">Done</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No chores due today.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Upcoming</h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming %}
+                    {% for assignment in upcoming %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
+                        <div>
+                            <strong>{{ assignment.chore.name }}</strong>
+                            <br>
+                            <small class="text-muted">Due: {{ assignment.due_date|date:"M d, Y" }}</small>
+                        </div>
+                        <form method="post" action="{% url 'assignment_complete' assignment.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Done</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No upcoming chores.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>

@@ -1,6 +1,7 @@
 # chores/views.py
 
-from datetime import timedelta
+from datetime import datetime, timedelta
+from django.utils.timezone import make_aware
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -11,6 +12,7 @@ from django.views.decorators.http import require_POST
 
 from .forms import ChoreForm
 from .models import Category, Chore, ChoreAssignment, Household
+from .services import assign_next, get_fair_assignee, get_total_points
 
 
 # --- Issue #22: Signup view (basic) ---
@@ -77,7 +79,46 @@ def logged_out(request):
 def dashboard(request):
     if not request.user.is_authenticated:
         return redirect('login')
-    return render(request, "chores/dashboard.html")
+    household = request.user.households.first()
+    if not household:
+        return render(request, "chores/dashboard.html", {
+            'today': [], 'upcoming': [], 'overdue': [], 'unread_count': 0,
+        })
+
+    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_end = today_start.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    open_assignments = ChoreAssignment.objects.filter(
+        chore__household=household,
+        assigned_to=request.user,
+        completed=False,
+    ).select_related('chore', 'chore__category')
+
+    today = []
+    upcoming = []
+    overdue = []
+
+    for a in open_assignments:
+        due_today = a.due_date >= today_start and a.due_date <= today_end
+        if a.due_date < today_start:
+            overdue.append(a)
+        elif due_today:
+            today.append(a)
+        else:
+            upcoming.append(a)
+
+    today.sort(key=lambda a: a.due_date)
+    upcoming.sort(key=lambda a: a.due_date)
+    overdue.sort(key=lambda a: a.due_date)
+
+    unread_count = request.user.notifications.filter(read=False).count()
+
+    return render(request, "chores/dashboard.html", {
+        'today': today,
+        'upcoming': upcoming,
+        'overdue': overdue,
+        'unread_count': unread_count,
+    })
 
 
 # --- Household settings view ---
@@ -92,6 +133,18 @@ def household_settings(request):
         if action == 'regenerate_code':
             new_code = Household.generate_invite_code()
             household.invite_code = new_code
+            household.save()
+            return redirect('household_settings')
+        elif action == 'update_settings':
+            name = request.POST.get('name', '').strip()
+            interval_str = request.POST.get('default_interval_days', '')
+            if name:
+                household.name = name
+            if interval_str:
+                try:
+                    household.default_interval_days = int(interval_str)
+                except ValueError:
+                    pass
             household.save()
             return redirect('household_settings')
 
@@ -340,21 +393,107 @@ def assignment_complete(request, pk):
     assignment.completed = True
     assignment.completed_at = timezone.now()
     assignment.save()
+
+    # If recurring and rotation not paused, create next assignment
+    if not assignment.chore.is_one_time:
+        household = assignment.chore.household
+        if not household.pause_rotation:
+            try:
+                assign_next(assignment.chore)
+            except ValueError:
+                pass
+
     return redirect('dashboard')
 
 
 # --- One-time chores ---
 
 def one_time_create(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
     household = request.user.households.first()
     if not household:
         return redirect('dashboard')
-    return render(request, 'chores/one_time_form.html', {'household': household})
+
+    categories = Category.objects.filter(household=household) | Category.objects.filter(household__isnull=True)
+    partners_count = household.partners.count()
+
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        category_id = request.POST.get('category')
+        difficulty = request.POST.get('difficulty', 'medium')
+        due_date_str = request.POST.get('due_date', '')
+
+        errors = []
+        if not name:
+            errors.append('Name is required.')
+        if not category_id:
+            errors.append('Category is required.')
+            category = None
+        else:
+            try:
+                category = Category.objects.get(id=category_id)
+            except Category.DoesNotExist:
+                errors.append('Invalid category selected.')
+                category = None
+
+        if difficulty not in dict(Chore.DIFFICULTY_CHOICES):
+            difficulty = 'medium'
+
+        if due_date_str:
+            try:
+                naive_dt = datetime.strptime(due_date_str, '%Y-%m-%d')
+                due_date = make_aware(naive_dt)
+            except ValueError:
+                errors.append('Invalid date format.')
+                due_date = timezone.now()
+        else:
+            due_date = timezone.now()
+
+        if not errors:
+            chore = Chore.objects.create(
+                name=name,
+                category=category,
+                difficulty=difficulty,
+                is_one_time=True,
+                household=household,
+                created_by=request.user,
+            )
+
+            # If multiple partners, set confirmed_by=None (pending confirmation)
+            if partners_count > 1:
+                chore.confirmed_by = None
+                chore.save()
+
+            # Auto-assign using fair assignment
+            assignee = get_fair_assignee(household)
+            if assignee:
+                ChoreAssignment.objects.create(
+                    chore=chore,
+                    assigned_to=assignee,
+                    due_date=due_date,
+                )
+
+            return redirect('chore_list')
+
+        error = ' '.join(errors)
+    else:
+        error = None
+        due_date = timezone.now().strftime('%Y-%m-%d')
+
+    return render(request, 'chores/one_time_form.html', {
+        'form': {'due_date': due_date} if request.method == 'POST' else {'due_date': timezone.now().strftime('%Y-%m-%d')},
+        'categories': categories,
+        'household': household,
+        'error': error,
+    })
 
 
 # --- Fairness stats ---
 
 def fairness_stats(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
     household = request.user.households.first()
     if not household:
         return redirect('dashboard')
@@ -362,19 +501,24 @@ def fairness_stats(request):
     partners = list(household.partners.all())
     partner_data = []
     for partner in partners:
+        total_points = get_total_points(partner)
         completed = ChoreAssignment.objects.filter(
             assigned_to=partner, completed=True
         )
-        total_points = sum(a.chore.difficulty_points for a in completed)
         partner_data.append({
             'user': partner,
             'points': total_points,
             'completed_count': completed.count(),
         })
 
+    history = ChoreAssignment.objects.filter(
+        completed=True
+    ).select_related('chore', 'assigned_to', 'chore__category').order_by('-completed_at')[:20]
+
     return render(request, 'chores/fairness_stats.html', {
         'household': household,
         'partner_data': partner_data,
+        'history': history,
     })
 
 

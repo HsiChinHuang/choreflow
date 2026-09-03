@@ -1,0 +1,36 @@
+<!-- chores/templates/chores/assignment_list.html -->
+{% extends "base.html" %}
+
+{% block title %}Assignments - ChoreFlow{% endblock %}
+
+{% block content %}
+<h2>My Assignments</h2>
+
+<div class="card mt-3">
+    <div class="card-body">
+        {% for assignment in assignments %}
+        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
+            <div>
+                <strong>{{ assignment.chore.name }}</strong>
+                <br>
+                <small class="text-muted">Due: {{ assignment.due_date|date:"M d, Y H:i" }}</small>
+                <span class="badge bg-{{ assignment.chore.difficulty }} ms-1">{{ assignment.chore.get_difficulty_display }}</span>
+                {% if assignment.completed %}
+                <span class="badge bg-success ms-1">Completed</span>
+                {% else %}
+                <span class="badge bg-warning ms-1">Pending</span>
+                {% endif %}
+            </div>
+            {% if not assignment.completed %}
+            <form method="post" action="{% url 'assignment_complete' assignment.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success">Complete</button>
+            </form>
+            {% endif %}
+        </div>
+        {% empty %}
+        <p class="text-muted">No assignments found.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

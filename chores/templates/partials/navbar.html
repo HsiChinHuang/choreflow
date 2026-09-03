@@ -3,6 +3,13 @@
     {% if user.is_authenticated and user.households.exists %}
     <a class="nav-link" href="{% url 'chore_list' %}">Chores</a>
     <a class="nav-link" href="{% url 'category_manage' %}">Categories</a>
+    <a class="nav-link" href="{% url 'fairness_stats' %}">Fairness</a>
+    <a class="nav-link" href="{% url 'notification_list' %}">
+        Notifications
+        {% if unread_count|default:0 > 0 %}
+        <span class="badge bg-danger">{{ unread_count|default:"0" }}</span>
+        {% endif %}
+    </a>
     <a class="nav-link" href="{% url 'household_settings' %}">Settings</a>
     {% endif %}
 </div>

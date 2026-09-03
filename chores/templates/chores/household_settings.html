@@ -8,23 +8,43 @@
 
 <div class="card mt-3">
     <div class="card-body">
-        <h5>{{ household.name }}</h5>
-        <p>Invite code: <strong>{{ household.invite_code }}</strong></p>
-        <p>Partners: {{ household.partners.count }}</p>
-        <p>Rotation: {% if household.pause_rotation %}<span class="text-danger">Paused</span>{% else %}<span class="text-success">Active</span>{% endif %}</p>
+        <form method="post" class="mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update_settings">
+            <div class="mb-3">
+                <label for="name" class="form-label">Household Name</label>
+                <input type="text" class="form-control" id="name" name="name" value="{{ household.name }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="default_interval_days" class="form-label">Default Interval (days)</label>
+                <input type="number" class="form-control" id="default_interval_days" name="default_interval_days" value="{{ household.default_interval_days }}" min="1" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Save Settings</button>
+        </form>
 
-        <form method="post" class="d-inline">
+        <hr>
+
+        <h5>Invite Code</h5>
+        <p>Invite code: <strong>{{ household.invite_code }}</strong></p>
+
+        <form method="post" class="d-inline mb-2">
             {% csrf_token %}
             <input type="hidden" name="action" value="regenerate_code">
             <button type="submit" class="btn btn-warning btn-sm">Regenerate invite code</button>
         </form>
 
+        <br>
+
         <form method="post" action="{% url 'pause_rotation' %}" class="d-inline">
             {% csrf_token %}
-            <button type="submit" class="btn btn-outline-secondary btn-sm">
+            <button type="submit" class="btn {% if household.pause_rotation %}btn-success{% else %}btn-outline-secondary{% endif %} btn-sm">
                 {% if household.pause_rotation %}Resume{% else %}Pause{% endif %} rotation
             </button>
         </form>
+
+        <p class="mt-2">Rotation: {% if household.pause_rotation %}<span class="text-danger">Paused</span>{% else %}<span class="text-success">Active</span>{% endif %}</p>
+
+        <p>Partners: {{ household.partners.count }}</p>
     </div>
 </div>
 {% endblock %}
