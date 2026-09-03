@@ -6,7 +6,7 @@ All 47 tasks have been moved to GitHub issues. See the table below.
 |---|-------|------|
 | 1 | [#15](https://github.com/HsiChinHuang/choreflow/issues/15) | Set up Django project and app with a passing test |
 | 2 | [#16](https://github.com/HsiChinHuang/choreflow/issues/16) | Configure static files and base template |
-| 3 | [#17](https://github.com/HsiChinHuang/choreflow/issues/17) | Define Household model |
+| 3 | ~~[#17](https://github.com/HsiChinHuang/choreflow/issues/17)~~ | Define Household model | ~~DONE~~
 | 4 | [#18](https://github.com/HsiChinHuang/choreflow/issues/18) | Define Category model |
 | 5 | [#19](https://github.com/HsiChinHuang/choreflow/issues/19) | Define Chore model |
 | 6 | [#20](https://github.com/HsiChinHuang/choreflow/issues/20) | Define ChoreAssignment model |
