@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}{% if is_create %}New{% elif is_edit %}Edit{% else %}Chore{% endif %} - ChoreFlow{% endblock %}
+
+{% block content %}
+<h2>{% if is_create %}New Chore{% elif is_edit %}Edit Chore{% else %}Chore{% endif %}</h2>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+{% if is_pending %}
+<div class="alert alert-warning">
+    This chore has pending changes awaiting confirmation from another partner.
+</div>
+{% endif %}
+
+{% if is_edit and not can_apply_directly %}
+<div class="alert alert-info">
+    You are not the creator of this chore. Your changes will be saved as pending and require confirmation from another partner.
+</div>
+{% endif %}
+
+<div class="row mt-3">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="id_name" name="name"
+                               value="{{ form.name.value|default:'' }}" required
+                               placeholder="e.g., Vacuum living room">
+                        {% if form.name.errors %}
+                        <div class="text-danger small">{{ form.name.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_category" class="form-label">Category</label>
+                        <select class="form-select" id="id_category" name="category" required>
+                            <option value="">-- Select --</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if form.category.value|default:chore.category.id == cat.id %}selected{% endif %}>
+                                {{ cat.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if form.category.errors %}
+                        <div class="text-danger small">{{ form.category.errors|striptags }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_difficulty" class="form-label">Difficulty</label>
+                        <select class="form-select" id="id_difficulty" name="difficulty">
+                            <option value="easy" {% if form.difficulty.value|default:'medium' == 'easy' %}selected{% endif %}>Easy</option>
+                            <option value="medium" {% if form.difficulty.value|default:'medium' == 'medium' %}selected{% endif %}>Medium</option>
+                            <option value="hard" {% if form.difficulty.value|default:'medium' == 'hard' %}selected{% endif %}>Hard</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_interval_override_days" class="form-label">Interval Override (days)</label>
+                        <input type="number" class="form-control" id="id_interval_override_days" name="interval_override_days"
+                               min="1"
+                               value="{{ form.interval_override_days.value|default:'' }}"
+                               placeholder="Leave blank to use household default">
+                        <div class="form-text">Leave blank to use household default ({{ household.default_interval_days }} days)</div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="id_is_one_time" name="is_one_time"
+                               {% if form.is_one_time.value %}checked{% endif %}>
+                        <label class="form-check-label" for="id_is_one_time">One-time chore</label>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        {% if is_edit %}Save{% else %}Create{% endif %} Chore
+                    </button>
+                    <a href="{% url 'chore_list' %}" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

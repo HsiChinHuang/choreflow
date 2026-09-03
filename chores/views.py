@@ -1,10 +1,15 @@
 # chores/views.py
 
+from datetime import timedelta
+
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
+
+from .forms import ChoreForm
 from .models import Category, Chore, ChoreAssignment, Household
 
 
@@ -105,108 +110,162 @@ def pause_rotation(request):
     return redirect('household_settings')
 
 
-# --- Chore CRUD ---
+def _auto_assign_chore(chore, household):
+    """Auto-generate the first assignment for a new chore."""
+    partners = list(household.partners.all())
+    if not partners:
+        return
+    # Assign to the first partner (round-robin style)
+    assigned_to = partners[0]
+    due_date = timezone.now() + timedelta(days=chore.interval_override_days or household.default_interval_days)
+    ChoreAssignment.objects.create(
+        chore=chore,
+        assigned_to=assigned_to,
+        due_date=due_date,
+    )
+
+
+# --- Chore CRUD (Issues #30-#34) ---
 
 def chore_list(request):
+    """Issue #34: List all chores for current household (is_one_time=False)."""
+    if not request.user.is_authenticated:
+        return redirect('login')
     household = request.user.households.first()
     if not household:
         return redirect('dashboard')
-    chores = Chore.objects.filter(household=household)
-    return render(request, 'chores/chore_list.html', {'chores': chores})
+    chores = Chore.objects.filter(
+        household=household,
+        is_one_time=False,
+    ).select_related('category', 'created_by', 'confirmed_by')
+    return render(request, 'chores/chore_list.html', {
+        'chores': chores,
+        'household': household,
+    })
 
 
 def chore_create(request):
+    """Issue #30: Form for recurring chore creation."""
+    if not request.user.is_authenticated:
+        return redirect('login')
     household = request.user.households.first()
     if not household:
         return redirect('dashboard')
 
     categories = Category.objects.filter(household=household) | Category.objects.filter(household__isnull=True)
+    partners_count = household.partners.count()
 
     if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        category_id = request.POST.get('category')
-        difficulty = request.POST.get('difficulty', 'medium')
-        is_one_time = request.POST.get('is_one_time') == 'on'
-        interval_override = request.POST.get('interval_override_days')
+        form = ChoreForm(request.POST, categories=categories, household=household)
+        if form.is_valid():
+            chore = form.save(commit=False)
+            chore.household = household
+            chore.created_by = request.user
+            chore.is_one_time = False
 
-        if not name or not category_id:
-            return render(request, 'chores/chore_form.html', {
-                'categories': categories,
-                'household': household,
-                'error': 'Name and category are required.',
-            })
+            # If multiple partners, set confirmed_by=None (pending confirmation)
+            if partners_count > 1:
+                chore.confirmed_by = None
 
-        category = Category.objects.get(id=category_id)
-        chore = Chore.objects.create(
-            name=name,
-            category=category,
-            difficulty=difficulty,
-            household=household,
-            created_by=request.user,
-            is_one_time=is_one_time,
-        )
-        if interval_override:
-            chore.interval_override_days = int(interval_override)
             chore.save()
 
-        return redirect('chore_list')
+            # Auto-generate first assignment
+            _auto_assign_chore(chore, household)
+
+            return redirect('chore_list')
+        else:
+            error = form.errors.as_text()
+    else:
+        form = ChoreForm(categories=categories, household=household)
+        error = None
 
     return render(request, 'chores/chore_form.html', {
+        'form': form,
         'categories': categories,
         'household': household,
+        'error': error,
+        'is_create': True,
     })
 
 
 def chore_update(request, pk):
+    """Issue #31: Edit form with pending changes for non-creator/multi-partner."""
     chore = get_object_or_404(Chore, pk=pk)
     if chore.household not in request.user.households.all():
         return redirect('dashboard')
 
-    categories = Category.objects.filter(household=chore.household) | Category.objects.filter(household__isnull=True)
+    household = chore.household
+    categories = Category.objects.filter(household=household) | Category.objects.filter(household__isnull=True)
+    partners_count = household.partners.count()
+    is_creator = chore.created_by == request.user
+    is_single_partner = partners_count == 1
+
+    # Creator or single-partner household applies changes directly
+    can_apply_directly = is_creator or is_single_partner
 
     if request.method == 'POST':
-        name = request.POST.get('name', '').strip()
-        category_id = request.POST.get('category')
-        difficulty = request.POST.get('difficulty', 'medium')
-        interval_override = request.POST.get('interval_override_days')
+        form = ChoreForm(
+            request.POST, categories=categories, household=household, instance=chore
+        )
+        # Save original values before form.is_valid() (which modifies instance)
+        original_name = chore.name
+        original_category = chore.category
+        original_difficulty = chore.difficulty
+        original_interval = chore.interval_override_days
+        if form.is_valid():
+            if can_apply_directly:
+                # Apply changes directly (creator or single partner)
+                form.save()
+            else:
+                # Save as pending changes (not the creator)
+                # NOTE: form.is_valid() modifies chore.name via instance, so we restore original values
+                cleaned = form.cleaned_data
+                pending = {
+                    'name': cleaned['name'],
+                    'category': cleaned['category'].id,
+                    'difficulty': cleaned.get('difficulty', original_difficulty),
+                }
+                if cleaned.get('interval_override_days') is not None:
+                    pending['interval_override_days'] = cleaned['interval_override_days']
 
-        if not name or not category_id:
-            return render(request, 'chores/chore_form.html', {
-                'categories': categories,
-                'household': chore.household,
-                'error': 'Name and category are required.',
-            })
-
-        category = Category.objects.get(id=category_id)
-
-        # Save pending changes for partner confirmation
-        pending = {
-            'name': name,
-            'category': category_id,
-            'difficulty': difficulty,
-        }
-        if interval_override:
-            pending['interval_override_days'] = int(interval_override)
-
-        chore.name = name
-        chore.category = category
-        chore.difficulty = difficulty
-        if interval_override:
-            chore.interval_override_days = int(interval_override)
-        chore.pending_changes = pending
-        chore.confirmed_by = None
-        chore.save()
-
-        return redirect('chore_list')
+                # Restore original values (form.is_valid() modified the instance)
+                chore.name = original_name
+                chore.category = original_category
+                chore.difficulty = original_difficulty
+                chore.interval_override_days = original_interval
+                chore.pending_changes = pending
+                chore.confirmed_by = None
+                chore.save()
+            return redirect('chore_list')
+        else:
+            error = form.errors.as_text()
+    else:
+        form = ChoreForm(
+            categories=categories,
+            household=household,
+            instance=chore,
+            initial={
+                'interval_override_days': chore.interval_override_days,
+                'category': chore.category.id,
+            },
+        )
+        error = None
 
     return render(request, 'chores/chore_form.html', {
+        'form': form,
         'categories': categories,
-        'household': chore.household,
+        'household': household,
         'chore': chore,
+        'error': error,
+        'is_edit': True,
+        'is_pending': chore.pending_changes is not None,
+        'can_apply_directly': can_apply_directly,
     })
 
 
+@require_POST
 def chore_delete(request, pk):
+    """Issue #33: Delete chore and all assignments. POST-only."""
     chore = get_object_or_404(Chore, pk=pk)
     if chore.household not in request.user.households.all():
         return redirect('dashboard')
@@ -215,23 +274,49 @@ def chore_delete(request, pk):
 
 
 def chore_confirm(request, pk):
+    """Issue #32: Show current values and proposed changes from pending_changes."""
     chore = get_object_or_404(Chore, pk=pk)
     if chore.household not in request.user.households.all():
         return redirect('dashboard')
 
-    if request.method == 'POST' and chore.pending_changes:
-        changes = chore.pending_changes
-        chore.name = changes.get('name', chore.name)
-        if 'category' in changes:
-            chore.category = Category.objects.get(id=changes['category'])
-        chore.difficulty = changes.get('difficulty', chore.difficulty)
-        if 'interval_override_days' in changes:
-            chore.interval_override_days = int(changes['interval_override_days'])
-        chore.confirmed_by = request.user
-        chore.pending_changes = None
-        chore.save()
+    household = chore.household
 
-    return redirect('chore_list')
+    if not chore.pending_changes:
+        return redirect('chore_list')
+
+    is_proposer = chore.created_by == request.user
+    proposer = chore.created_by
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '')
+
+        if action == 'confirm' and not is_proposer:
+            # Partner (not proposer) confirms: apply changes, set confirmed_by, clear pending
+            changes = chore.pending_changes
+            chore.name = changes.get('name', chore.name)
+            if 'category' in changes:
+                chore.category = Category.objects.get(id=changes['category'])
+            chore.difficulty = changes.get('difficulty', chore.difficulty)
+            if 'interval_override_days' in changes:
+                chore.interval_override_days = int(changes['interval_override_days'])
+            chore.confirmed_by = request.user
+            chore.pending_changes = None
+            chore.save()
+            return redirect('chore_list')
+
+        elif action == 'reject' and not is_proposer:
+            # Partner (not proposer) rejects: clear pending_changes
+            chore.pending_changes = None
+            chore.save()
+            return redirect('chore_list')
+
+    return render(request, 'chores/chore_confirm.html', {
+        'chore': chore,
+        'pending_changes': chore.pending_changes,
+        'proposer': proposer,
+        'current_user': request.user,
+        'household': household,
+    })
 
 
 # --- Assignments ---
