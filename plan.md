@@ -74,11 +74,19 @@ class ChoreAssignment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Notification(models.Model):
+    REMINDER = "reminder"
+    OVERDUE = "overdue"
+    TYPE_CHOICES = [(REMINDER, "Reminder"), (OVERDUE, "Overdue")]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    message = models.CharField(max_length=255)
+    message = models.CharField(max_length=500)
     created_at = models.DateTimeField(auto_now_add=True)
     read = models.BooleanField(default=False)
     chore_assignment = models.ForeignKey(ChoreAssignment, on_delete=models.CASCADE, null=True, blank=True)
+    notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=REMINDER)
+
+    class Meta:
+        unique_together = [("chore_assignment", "notification_type")]
 Notes:
 
 Points balance is computed on the fly, not stored.
@@ -176,6 +184,7 @@ urlpatterns = [
     # Notifications
     path('notifications/', views.notification_list, name='notification_list'),
     path('notifications/<int:pk>/read/', views.notification_read, name='notification_read'),
+    path('notifications/<int:pk>/mark-read/', views.notification_mark_read_json, name='notification_mark_read_json'),
 ]
 
 View Functions (brief)
@@ -347,7 +356,23 @@ class Command(BaseCommand):
         #   - If now - due_date >= before_overdue: create overdue notification
         # Avoid duplicates by checking if notification already exists for that assignment and type.
 
-Schedule with cron: 0 * * * * /path/to/venv/bin/python /path/to/choreflow/manage.py send_reminders
+Schedule with cron:
+
+**Linux/macOS** (run every hour):
+```
+0 * * * * cd /path/to/choreflow && /path/to/venv/bin/python manage.py send_reminders >> /path/to/logs/reminders.log 2>&1
+```
+
+**Windows Task Scheduler** (PowerShell):
+```powershell
+# Create scheduled task to run hourly:
+$action = New-ScheduledTaskAction -Execute "uv" -Argument "run python manage.py send_reminders" -WorkingDirectory "C:\Users\tw097\Desktop\ai-dev-tools-zoomcamp\choreflow"
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Hours 1)
+$principal = New-ScheduledTaskPrincipal -UserId "CurrentUser" -LogonType Interactive -RunLevel Highest
+Register-ScheduledTask -TaskName "ChoreFlow Reminders" -Action $action -Trigger $trigger -Principal $principal
+```
+
+The command is idempotent — running it multiple times does not create duplicate notifications.
 
 8. Testing Plan
 Unit tests:

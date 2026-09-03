@@ -82,6 +82,13 @@ class ChoreAssignment(models.Model):
 
 
 class Notification(models.Model):
+    REMINDER = "reminder"
+    OVERDUE = "overdue"
+    TYPE_CHOICES = [
+        (REMINDER, "Reminder"),
+        (OVERDUE, "Overdue"),
+    ]
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     message = models.CharField(max_length=500)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -89,6 +96,10 @@ class Notification(models.Model):
     chore_assignment = models.ForeignKey(
         ChoreAssignment, on_delete=models.CASCADE, null=True, blank=True
     )
+    notification_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=REMINDER)
+
+    class Meta:
+        unique_together = [("chore_assignment", "notification_type")]
 
     def __str__(self):
         return f"[{self.user.username}] {self.message[:50]}"

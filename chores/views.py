@@ -6,6 +6,7 @@ from django.utils.timezone import make_aware
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -525,6 +526,8 @@ def fairness_stats(request):
 # --- Notifications ---
 
 def notification_list(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
     notifications = request.user.notifications.order_by('-created_at')
     return render(request, 'chores/notification_list.html', {
         'notifications': notifications,
@@ -535,7 +538,18 @@ def notification_read(request, pk):
     notification = get_object_or_404(request.user.notifications, pk=pk)
     notification.read = True
     notification.save()
-    return redirect('notification_list')
+    # Support both redirect (for form POST) and JSON (for AJAX)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.method == "POST":
+        return JsonResponse({"success": True})
+    return redirect("notification_list")
+
+
+@require_POST
+def notification_mark_read_json(request, pk):
+    notification = get_object_or_404(request.user.notifications, pk=pk)
+    notification.read = True
+    notification.save()
+    return JsonResponse({"success": True})
 
 
 # --- Category management ---
