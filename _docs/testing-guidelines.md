@@ -14,7 +14,7 @@ Tests are run with `pytest` via `uv run pytest`.
 
 - Tests live in the `tests/` directory at the project root (same level as `config/`).
 - The Django project settings are at `config/config/settings.py`.
-- The `pytest.ini` file configures `DJANGO_SETTINGS_MODULE = config.settings` and adds `config` to the Python path.
+- The `pytest.ini` file configures `DJANGO_SETTINGS_MODULE = config.config.settings` and adds the project root (`.`) to the Python path so both `config` and `chores` packages are importable.
 
 ## Test Files
 
