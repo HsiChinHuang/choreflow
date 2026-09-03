@@ -311,7 +311,15 @@ def notification_read(request, pk):
 
 # --- Category management ---
 
+PREDEFINED_CATEGORY_NAMES = frozenset([
+    "Kitchen", "Bathroom", "Bedroom", "Living Room", "Outdoor", "Other",
+])
+
+
 def category_manage(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+
     household = request.user.households.first()
     if not household:
         return redirect('dashboard')
@@ -324,14 +332,36 @@ def category_manage(request):
         action = request.POST.get('action', '')
         if action == 'add':
             name = request.POST.get('name', '').strip()
-            if name and request.POST.get('is_custom') == 'on':
-                Category.objects.create(name=name, is_predefined=False, household=household)
+            is_custom = request.POST.get('is_custom') == 'on'
+            if name:
+                if is_custom:
+                    if name not in PREDEFINED_CATEGORY_NAMES:
+                        Category.objects.create(
+                            name=name,
+                            is_predefined=False,
+                            household=household,
+                        )
+                else:
+                    existing = Category.objects.filter(
+                        household__isnull=True, is_predefined=True, name=name
+                    )
+                    if not existing.exists():
+                        Category.objects.create(
+                            name=name,
+                            is_predefined=True,
+                            household=None,
+                        )
         elif action == 'delete':
             cat_id = request.POST.get('category_id')
             if cat_id:
                 cat = get_object_or_404(Category, id=cat_id)
-                if not cat.is_predefined and cat.household == household:
+                if (
+                    not cat.is_predefined
+                    and cat.household == household
+                    and not Chore.objects.filter(category=cat).exists()
+                ):
                     cat.delete()
+        return redirect('category_manage')
 
     predefined = Category.objects.filter(is_predefined=True, household__isnull=True)
     custom = Category.objects.filter(household=household)
