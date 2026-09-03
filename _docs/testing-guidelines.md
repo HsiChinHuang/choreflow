@@ -25,6 +25,7 @@ Tests are run with `pytest` via `uv run pytest`.
 | `tests/test_home.py` | Base template renders, has Bootstrap CDN, defines blocks (title, content, extra_js), has navbar |
 | `tests/test_categories.py` | Management command `seed_categories` (creates 6 predefined categories, idempotent, correct data), `category_manage` view (loads, shows categories, login required), add custom category (creates category, prevents predefined name duplicates, requires name), delete custom category (deletes custom, blocks when chores use it, blocks predefined, blocks other household) |
 | `tests/test_services.py` | `get_total_points(user)` (zero for no completed, counts easy/medium/hard, multi-completed, ignores incomplete), `get_fair_assignee(household)` (lowest points, tie random, None for empty household, household-scoped), `assign_next(chore)` (returns assignment, alternates partners, chained alternation, interval override, household default, first-assignment due date, paused rotation ValueError, no-partners ValueError) |
+| `tests/test_chore_views.py` | `assignment_complete` (marks completed, assigns next, pauses skip, 404 handling), `dashboard` (categorizes Today/Upcoming/Overdue, excludes completed, unread count), `one_time_create` (creates chore, fair assignee, validation, defaults), `fairness_stats` (uses get_total_points, partner points, history table, limit 20), `household_settings` (edit name/interval, invite code, pause link), `pause_rotation` (toggle True/False, existing assignments unchanged) |
 
 ## Conventions
 

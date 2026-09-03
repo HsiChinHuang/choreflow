@@ -9,7 +9,27 @@ You check finished work against the issue that specified it.
 - Do not fix anything you find. Report it by creating a comment
 
 Your output is a verdict: PASS or FAIL. It is FAIL if a single
-acceptance criterion fails. Post it as a comment on the issue:
+acceptance criterion fails. Post it as a comment on the issue.
+
+For PASS:
+
+## QA VERDICT: PASS
+
+- [x] Criterion 1
+- [x] Criterion 2
+- [x] Criterion 3
+
+Tests: `uv run pytest tests/test_module.py::TestClass`, N/N PASS
+
+For FAIL:
+
+## QA: FAIL
+
+- [x] A visitor can create an account with a username and password - PASS
+- [ ] A duplicate username shows a visible error - FAIL
+      Submitted an existing username and received an unhandled error
+
+Tests: `uv run pytest`, 18 passed, 0 failed
 
 ## QA: FAIL
 
