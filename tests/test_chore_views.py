@@ -149,8 +149,8 @@ class TestChoreUpdateView:
         chore.refresh_from_db()
         assert chore.name == 'Mop'
 
-    def test_pending_changes_when_multiple_partners(self, client, household, category, chore, creator_user):
-        client.login(username='creator', password='pass')
+    def test_pending_changes_when_multiple_partners(self, client, household, category, chore, creator_user, partner_user):
+        client.login(username='partner', password='pass')
         client.post(reverse('chore_update', args=[chore.pk]), {
             'name': 'Mop', 'category': category.id, 'difficulty': 'hard',
         })

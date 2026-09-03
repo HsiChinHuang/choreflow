@@ -1,0 +1,25 @@
+{# chores/templates/partials/chore_card.html #}
+{# Context: assignment (ChoreAssignment), show_complete (bool) #}
+{% load static %}
+<div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom {% if assignment.chore.is_one_time %}border-start border-4 border-warning{% endif %}" {% if show_complete %}data-assignment-id="{{ assignment.pk }}"{% endif %}>
+    <div>
+        <strong>{{ assignment.chore.name }}</strong>
+        {% if assignment.chore.category %}
+        <br>
+        <small class="text-muted">{{ assignment.chore.category.name }}</small>
+        {% endif %}
+        <span class="badge bg-{% if assignment.chore.difficulty == 'easy' %}success{% elif assignment.chore.difficulty == 'medium' %}warning{% else %}danger{% endif %} ms-1">{{ assignment.chore.get_difficulty_display }}</span>
+        {% if assignment.assigned_to %}
+        <br>
+        <small class="text-muted">Assignee: {{ assignment.assigned_to.username }}</small>
+        {% endif %}
+        <br>
+        <small class="text-muted">Due: {{ assignment.due_date|date:"M d, Y H:i" }}</small>
+    </div>
+    {% if show_complete %}
+    <form method="post" action="{% url 'assignment_complete' assignment.pk %}" class="d-inline complete-form">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-success">Complete</button>
+    </form>
+    {% endif %}
+</div>

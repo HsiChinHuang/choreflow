@@ -244,6 +244,8 @@ def chore_create(request):
 
 def chore_update(request, pk):
     """Issue #31: Edit form with pending changes for non-creator/multi-partner."""
+    if not request.user.is_authenticated:
+        return redirect('login')
     chore = get_object_or_404(Chore, pk=pk)
     if chore.household not in request.user.households.all():
         return redirect('dashboard')
@@ -329,6 +331,8 @@ def chore_delete(request, pk):
 
 def chore_confirm(request, pk):
     """Issue #32: Show current values and proposed changes from pending_changes."""
+    if not request.user.is_authenticated:
+        return redirect('login')
     chore = get_object_or_404(Chore, pk=pk)
     if chore.household not in request.user.households.all():
         return redirect('dashboard')

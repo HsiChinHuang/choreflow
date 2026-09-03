@@ -1,7 +1,34 @@
-<!-- chores/templates/chores/household_settings.html -->
 {% extends "base.html" %}
 
 {% block title %}Household Settings - ChoreFlow{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyInviteCode() {
+    const code = "{{ household.invite_code }}";
+    navigator.clipboard.writeText(code).then(function() {
+        const btn = document.getElementById('copy-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.classList.remove('btn-warning');
+        btn.classList.add('btn-success');
+        setTimeout(function() {
+            btn.textContent = originalText;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-warning');
+        }, 2000);
+    }).catch(function() {
+        const textArea = document.createElement('textarea');
+        textArea.value = code;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Invite code copied: ' + code);
+    });
+}
+</script>
+{% endblock %}
 
 {% block content %}
 <h2>Household Settings</h2>
@@ -25,9 +52,13 @@
         <hr>
 
         <h5>Invite Code</h5>
-        <p>Invite code: <strong>{{ household.invite_code }}</strong></p>
+        <div class="input-group mb-2">
+            <input type="text" class="form-control" id="invite-code" value="{{ household.invite_code }}" readonly>
+            <button class="btn btn-outline-secondary" id="copy-btn" type="button" onclick="copyInviteCode()">Copy</button>
+        </div>
+        <p class="text-muted small">Share this code with another partner to join your household.</p>
 
-        <form method="post" class="d-inline mb-2">
+        <form method="post" class="d-inline mb-3">
             {% csrf_token %}
             <input type="hidden" name="action" value="regenerate_code">
             <button type="submit" class="btn btn-warning btn-sm">Regenerate invite code</button>

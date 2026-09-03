@@ -1,4 +1,3 @@
-<!-- chores/templates/chores/dashboard.html -->
 {% extends "base.html" %}
 
 {% block title %}Dashboard - ChoreFlow{% endblock %}
@@ -16,16 +15,8 @@
             <div class="card-body">
                 {% if overdue %}
                     {% for assignment in overdue %}
-                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
-                        <div>
-                            <strong>{{ assignment.chore.name }}</strong>
-                            <br>
-                            <small class="text-muted">Due: {{ assignment.due_date|date:"M d" }}</small>
-                        </div>
-                        <form method="post" action="{% url 'assignment_complete' assignment.pk %}" class="d-inline">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-danger">Done</button>
-                        </form>
+                    <div class="overdue-card border border-danger rounded mb-2 p-2">
+                        {% include "partials/chore_card.html" with assignment=assignment show_complete=True %}
                     </div>
                     {% endfor %}
                 {% else %}
@@ -44,17 +35,8 @@
             <div class="card-body">
                 {% if today %}
                     {% for assignment in today %}
-                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
-                        <div>
-                            <strong>{{ assignment.chore.name }}</strong>
-                            <br>
-                            <small class="text-muted">{{ assignment.chore.category.name }}</small>
-                            <span class="badge bg-{{ assignment.chore.difficulty }}">{{ assignment.chore.get_difficulty_display }}</span>
-                        </div>
-                        <form method="post" action="{% url 'assignment_complete' assignment.pk %}" class="d-inline">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-warning">Done</button>
-                        </form>
+                    <div class="mb-2 p-2 border-bottom">
+                        {% include "partials/chore_card.html" with assignment=assignment show_complete=True %}
                     </div>
                     {% endfor %}
                 {% else %}
@@ -73,16 +55,8 @@
             <div class="card-body">
                 {% if upcoming %}
                     {% for assignment in upcoming %}
-                    <div class="d-flex justify-content-between align-items-center mb-2 p-2 border-bottom">
-                        <div>
-                            <strong>{{ assignment.chore.name }}</strong>
-                            <br>
-                            <small class="text-muted">Due: {{ assignment.due_date|date:"M d, Y" }}</small>
-                        </div>
-                        <form method="post" action="{% url 'assignment_complete' assignment.pk %}" class="d-inline">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-outline-primary">Done</button>
-                        </form>
+                    <div class="mb-2 p-2 border-bottom">
+                        {% include "partials/chore_card.html" with assignment=assignment show_complete=True %}
                     </div>
                     {% endfor %}
                 {% else %}

@@ -1,4 +1,3 @@
-<!-- chores/templates/chores/fairness_stats.html -->
 {% extends "base.html" %}
 
 {% block title %}Fairness Stats - ChoreFlow{% endblock %}
@@ -7,46 +6,32 @@
 <h2>Fairness Stats</h2>
 
 <div class="row mt-4">
-    <!-- Partner points panel -->
+    {% for data in partner_data %}
     <div class="col-md-6">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Partner Points</h5>
+                <h5 class="mb-0">{{ data.user.username }}</h5>
             </div>
             <div class="card-body">
-                {% for data in partner_data %}
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between">
-                        <strong>{{ data.user.username }}</strong>
-                        <span>{{ data.points }} points ({{ data.completed_count }} completed)</span>
-                    </div>
-                    <div class="progress mt-1" style="height: 20px;">
-                        <div class="progress-bar bg-success" role="progressbar"
-                             style="width: {% if partner_data %}{{ data.points|add:'0' }}%{% else %}0%{% endif %};"
-                             aria-valuenow="{{ data.points }}" aria-valuemin="0" aria-valuemax="100">
-                            {{ data.points }} pts
-                        </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <strong>Total Points</strong>
+                    <span>{{ data.points }} points ({{ data.completed_count }} completed)</span>
+                </div>
+                <div class="progress" style="height: 20px;">
+                    <div class="progress-bar {% if forloop.counter0 == 0 %}bg-success{% else %}bg-info{% endif %}" role="progressbar"
+                         style="width: {% if data.points > 0 %}{{ data.points|add:'10' }}{% else %}1{% endif %}%;"
+                         aria-valuenow="{{ data.points }}" aria-valuemin="0" aria-valuemax="100">
+                        {{ data.points }} pts
                     </div>
                 </div>
-                {% empty %}
-                <p class="text-muted">No partners in this household.</p>
-                {% endfor %}
             </div>
         </div>
     </div>
-
-    <!-- Quick stats -->
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Quick Stats</h5>
-            </div>
-            <div class="card-body">
-                <p>Total completed assignments: {{ history.count }}</p>
-                <p>Household: {{ household.name }}</p>
-            </div>
-        </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info">No partners in this household.</div>
     </div>
+    {% endfor %}
 </div>
 
 <!-- History table -->
@@ -72,7 +57,7 @@
                     <td>{{ assignment.chore.name }}</td>
                     <td>{{ assignment.chore.category.name }}</td>
                     <td>{{ assignment.assigned_to.username }}</td>
-                    <td><span class="badge bg-{{ assignment.chore.difficulty }}">{{ assignment.chore.get_difficulty_display }}</span></td>
+                    <td><span class="badge bg-{% if assignment.chore.difficulty == 'easy' %}success{% elif assignment.chore.difficulty == 'medium' %}warning{% else %}danger{% endif %}">{{ assignment.chore.get_difficulty_display }}</span></td>
                     <td>{{ assignment.chore.difficulty_points }}</td>
                     <td>{{ assignment.completed_at|date:"M d, Y H:i" }}</td>
                 </tr>
