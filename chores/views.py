@@ -66,11 +66,6 @@ def signup(request):
 
 # --- Issue #23: Login/Logout via Django auth views ---
 # (handled by Django's LoginView/LogoutView, no custom view needed)
-
-def logged_out(request):
-    return render(request, 'registration/logged_out.html')
-
-
 # --- Issue #26: Generate unique invite code for household ---
 # (generate_invite_code is a model method on Household)
 
