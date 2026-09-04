@@ -403,6 +403,9 @@ def assignment_complete(request, pk):
             except ValueError:
                 pass
 
+    # Return JSON for AJAX requests to allow client-side handling
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"success": True})
     return redirect('dashboard')
 
 
@@ -537,8 +540,8 @@ def notification_read(request, pk):
     notification = get_object_or_404(request.user.notifications, pk=pk)
     notification.read = True
     notification.save()
-    # Support both redirect (for form POST) and JSON (for AJAX)
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.method == "POST":
+    # Return JSON for AJAX requests to allow client-side handling
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return JsonResponse({"success": True})
     return redirect("notification_list")
 

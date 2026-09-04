@@ -11,7 +11,8 @@
             {% for notification in notifications %}
             <a href="javascript:void(0)"
                class="list-group-item list-group-item-action notification-item {% if not notification.read %}list-group-item-warning{% endif %}"
-               data-notification-id="{{ notification.pk }}">
+               data-notification-id="{{ notification.pk }}"
+               onclick="markNotificationRead('{{ notification.pk }}', this); return false;">
                 <div class="d-flex w-100 justify-content-between">
                     <div class="d-flex align-items-center">
                         {% if not notification.read %}

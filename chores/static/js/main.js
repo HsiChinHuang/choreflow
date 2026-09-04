@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 credentials: 'same-origin',
             })
                 .then(function (response) {
-                    if (response.ok || response.redirected) {
+                    if (response.ok) {
                         if (card) {
                             card.remove();
                         } else {
