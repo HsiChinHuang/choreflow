@@ -42,18 +42,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 credentials: 'same-origin',
             })
                 .then(function (response) {
-                    if (response.ok) {
-                        // Remove the card on success
+                    if (response.ok || response.redirected) {
                         if (card) {
                             card.remove();
                         } else {
-                            // Try to find and remove parent row
                             const parent = form.closest('.list-group-item, tr, .mb-2');
                             if (parent) {
                                 parent.remove();
                             }
                         }
-                        // Update unread count in navbar
                         updateUnreadCount();
                     } else {
                         alert('Failed to complete chore. Please try again.');
@@ -107,11 +104,14 @@ function markNotificationRead(notificationId, element) {
                     unreadDot.remove();
                 }
 
-                // Update the badge text next to "read"
+                // Update the status text
                 const statusEl = element.querySelector('.d-flex.w-100.justify-content-between small.text-muted:last-child');
                 if (statusEl) {
                     statusEl.textContent = 'Read';
                 }
+
+                // Update unread count in navbar
+                updateUnreadCount();
             }
         })
         .catch(function () {
@@ -137,19 +137,22 @@ function updateUnreadCount() {
             if (!html) return;
             const temp = document.createElement('div');
             temp.innerHTML = html;
-            const badge = temp.querySelector('#navbarNav a[href*="notifications"] .badge');
-            if (badge) {
-                const newCount = parseInt(badge.textContent, 10);
-                const currentBadge = document.querySelector('#navbarNav a[href*="notifications"] .badge');
-                if (currentBadge) {
-                    if (newCount > 0) {
-                        currentBadge.textContent = newCount;
-                        currentBadge.style.display = '';
-                    } else {
-                        currentBadge.style.display = 'none';
+            const badges = temp.querySelectorAll('.badge');
+            badges.forEach(function (newBadge) {
+                const badgeLink = newBadge.closest('a');
+                if (badgeLink && badgeLink.href && badgeLink.href.indexOf('notifications') !== -1) {
+                    const newCount = parseInt(newBadge.textContent, 10);
+                    const currentBadge = document.querySelector('#navbarNav a[href*="notifications"] .badge');
+                    if (currentBadge) {
+                        if (newCount > 0) {
+                            currentBadge.textContent = newCount;
+                            currentBadge.style.display = '';
+                        } else {
+                            currentBadge.style.display = 'none';
+                        }
                     }
                 }
-            }
+            });
         })
         .catch(function () {
             // Silently fail
