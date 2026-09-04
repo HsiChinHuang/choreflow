@@ -39,8 +39,8 @@ def category(db):
 class TestAssignmentCompleteAJAX:
     """Tests for the assignment_complete view responding to AJAX/fetch requests."""
 
-    def test_complete_as_ajax_returns_redirect(self, client, household, category, creator_user):
-        """POST via fetch returns redirect (302) to dashboard - JS follows redirect."""
+    def test_complete_as_ajax_returns_json(self, client, household, category, creator_user):
+        """POST via fetch returns JSON (200) for AJAX - JS handles card removal."""
         chore = Chore.objects.create(
             name='Vacuum', category=category, household=household,
             created_by=creator_user, is_one_time=False,
@@ -54,8 +54,9 @@ class TestAssignmentCompleteAJAX:
             reverse('assignment_complete', args=[a.pk]),
             HTTP_X_REQUESTED_WITH='XMLHttpRequest',
         )
-        assert r.status_code == 302
-        assert '/dashboard/' in r.url or r.url == '/'
+        assert r.status_code == 200
+        data = r.json()
+        assert data['success'] is True
 
     def test_complete_as_ajax_marks_completed(self, client, household, category, creator_user):
         """AJAX completion still marks assignment as completed."""
@@ -192,7 +193,7 @@ class TestNotificationReadAJAX:
             reverse('notification_read', args=[notification.pk]),
             content_type='application/x-www-form-urlencoded',
         )
-        assert r.status_code == 200
+        assert r.status_code == 302  # Non-AJAX POST returns redirect
         notification.refresh_from_db()
         assert notification.read is True
 

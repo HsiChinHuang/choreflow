@@ -460,6 +460,6 @@ class TestNotificationReadRedirect(TestCase):
             reverse('notification_read', args=[notification.pk]),
             content_type='application/x-www-form-urlencoded',
         )
-        self.assertEqual(r.status_code, 200)  # JSON response for POST
+        self.assertEqual(r.status_code, 302)  # Non-AJAX POST returns redirect
         notification.refresh_from_db()
         self.assertTrue(notification.read)
